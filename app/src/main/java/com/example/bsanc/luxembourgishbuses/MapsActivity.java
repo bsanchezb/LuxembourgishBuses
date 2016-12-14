@@ -61,6 +61,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     //Initialize to a non-valid zoom value
     private float previousZoomLevel = -1.0f;
     private boolean isZooming = false;
+    private int something = 10;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

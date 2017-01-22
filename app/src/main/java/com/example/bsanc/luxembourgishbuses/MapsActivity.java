@@ -1,9 +1,11 @@
 package com.example.bsanc.luxembourgishbuses;
 
+import android.app.Activity;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.os.Build;
 
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -17,7 +19,12 @@ import com.google.android.gms.maps.model.BitmapDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.location.Location;
+import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.widget.TextView;
 import android.graphics.drawable.VectorDrawable;
 
@@ -33,6 +40,7 @@ import com.google.android.gms.maps.GoogleMap.OnCameraChangeListener;
 import com.google.android.gms.maps.GoogleMap.OnCameraMoveStartedListener;
 import com.google.android.gms.maps.GoogleMap.OnCameraMoveListener;
 import com.google.android.gms.maps.GoogleMap.OnCameraIdleListener;
+import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.maps.android.clustering.ClusterItem;
@@ -48,11 +56,15 @@ import org.json.JSONException;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import android.content.Intent;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, ConnectionCallbacks, OnConnectionFailedListener {
+
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, ConnectionCallbacks, OnConnectionFailedListener, OnMarkerClickListener {
 
     private GoogleMap mMap;
+    private ArrayList<Station> myStations = new ArrayList<Station>();
     private ArrayList<Marker> myMarkers = new ArrayList<Marker>();
+    private ArrayList<Marker> myVeloh = new ArrayList<Marker>();
     private static final int MY_PERMISSION_ACCESS_COARSE_LOCATION = 11;
     GoogleApiClient mGoogleApiClient;
     protected Location mLastLocation;
@@ -61,7 +73,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     //Initialize to a non-valid zoom value
     private float previousZoomLevel = -1.0f;
     private boolean isZooming = false;
-    private int something = 10;
+    public Marker currentMarker;
+    public int currentMarkerType;
+    private static final int ID_BUS_STATIONS = 0;
+    private static final int ID_VELOH_STATIONS = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +87,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+
+
         // Create an instance of GoogleAPIClient.
         if (mGoogleApiClient == null) {
             mGoogleApiClient = new GoogleApiClient.Builder(this)
@@ -79,6 +96,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     .addOnConnectionFailedListener(this)
                     .addApi(LocationServices.API)
                     .build();
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.main_menu, menu);
+
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    /**
+     * On selecting action bar icons
+     * */
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Take appropriate action for each action item click
+        switch (item.getItemId()) {
+            case R.id.closest_station:
+                getClosestStation();
+                return true;
+            case R.id.exit:
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
     }
 
@@ -94,6 +136,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 LatLng user_location = new LatLng(mLatitudeText, mLongitudeText);
                 //addBusStopMarker(49.603412, 6.118454);
                 int zoomLevel = 16; //This goes up to 21
+                mMap.setOnMarkerClickListener(this);
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(user_location, zoomLevel));
                 mMap.setOnCameraChangeListener(getCameraChangeListener());
             }
@@ -110,60 +153,58 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onCameraChange(CameraPosition position)
             {
-                if(previousZoomLevel != position.zoom)
+                if(position.zoom >= 15 && previousZoomLevel < 15 || position.zoom <= 15 && previousZoomLevel > 15)
                 {
                     isZooming = true;
                     for (Marker marker : myMarkers) {
                         marker.setVisible(position.zoom > 15);
                     }
+                    for (Marker marker : myVeloh) {
+                        marker.setVisible(position.zoom > 15);
+                    }
                 }
-
                 previousZoomLevel = position.zoom;
             }
         };
     }
 
-    public void onCameraMove() {
-        CameraPosition cameraPosition = mMap.getCameraPosition();
+    public void getClosestStation() {
+        Location target = new Location("target");
+        Marker best_station = myMarkers.get(0);
+        double best_distance = -1;
         for (Marker marker : myMarkers) {
-            marker.setVisible(cameraPosition.zoom > 15);
+            target.setLatitude(marker.getPosition().latitude);
+            target.setLongitude(marker.getPosition().longitude);
+            if(best_distance > target.distanceTo(mLastLocation) || best_distance == -1) {
+                best_distance = target.distanceTo(mLastLocation);
+                best_station = marker;
+                //System.out.println(best_distance);
+            }
         }
-        System.out.println(cameraPosition.zoom);
+        openStation(best_station);
     }
-
 
     private void drawBusStations() {
-        ArrayList<Station> formList = getBusStationsList();
+        ArrayList<Station> formList = getBusStationsList("stations");
         for (int i = 0; i < formList.size(); i++) {
-            addBusStopMarker(formList.get(i).name, formList.get(i).longitude, formList.get(i).latitude);
+            addBusStopMarker(formList.get(i), ID_BUS_STATIONS);
+        }
+        ArrayList<Station> formList_veloh = getBusStationsList("veloh.json");
+        for (int i = 0; i < formList_veloh.size(); i++) {
+            addBusStopMarker(formList_veloh.get(i), ID_VELOH_STATIONS);
         }
     }
 
-    private ArrayList<Station> getBusStationsList() {
-        ArrayList<Station> formList = new ArrayList<Station>();
-        try {
-            JSONObject obj = new JSONObject(loadJSONFromAsset("stations"));
-            JSONArray m_jArry = obj.getJSONArray("stations");
-
-            for (int i = 0; i < m_jArry.length(); i++) {
-                JSONObject jo_inside = m_jArry.getJSONObject(i);
-                //Log.d("Details-->", jo_inside.getString("formule"));
-                String station_name = jo_inside.getString("name");
-                double longitude = Double.parseDouble(jo_inside.getString("longitude"));
-                double latitude = Double.parseDouble(jo_inside.getString("latitude"));
-
-                //Add your values in your `ArrayList` as below:
-                formList.add(new Station(station_name, longitude, latitude));
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
+    private void addBusStopMarker(Station station, int id) {
+        LatLng location = new LatLng(station.latitude,  station.longitude);
+        switch (id) {
+            case ID_BUS_STATIONS:
+                myMarkers.add(mMap.addMarker(new MarkerOptions().position(location).title(station.name).icon(getBitmapDescriptor(R.drawable.ic_bus_station)).anchor(0.5f, 0.5f)));
+                break;
+            case ID_VELOH_STATIONS:
+                myVeloh.add(mMap.addMarker(new MarkerOptions().position(location).title(station.name).icon(getBitmapDescriptor(R.drawable.ic_veloh_station)).anchor(0.5f, 0.5f)));
+            break;
         }
-        return formList;
-    }
-
-    private void addBusStopMarker(String name, double latitude, double longitude) {
-        LatLng location = new LatLng(longitude, latitude);
-        myMarkers.add(mMap.addMarker(new MarkerOptions().position(location).title(name).icon(getBitmapDescriptor(R.drawable.ic_bus_station)).anchor(0.5f, 0.5f)));
     }
 
     private BitmapDescriptor getBitmapDescriptor(int id) {
@@ -183,6 +224,75 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         } else {
             return BitmapDescriptorFactory.fromResource(id);
+        }
+    }
+
+    private ArrayList<Station> getBusStationsList(String filename) {
+        ArrayList<Station> formList = new ArrayList<Station>();
+        try {
+            JSONObject obj = new JSONObject(loadJSONFromAsset(filename));
+            JSONArray m_jArry = obj.getJSONArray("stations");
+
+            for (int i = 0; i < m_jArry.length(); i++) {
+                JSONObject jo_inside = m_jArry.getJSONObject(i);
+                //Log.d("Details-->", jo_inside.getString("formule"));
+                String station_name = jo_inside.getString("name");
+                double longitude = Double.parseDouble(jo_inside.getString("longitude"));
+                double latitude = Double.parseDouble(jo_inside.getString("latitude"));
+
+                //Add your values in your `ArrayList` as below:
+                Station new_station = new Station(station_name, longitude, latitude);
+                formList.add(new_station);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return formList;
+    }
+
+    @Override
+    public boolean onMarkerClick(final Marker marker) {
+        openStation(marker);
+        return true;
+    }
+
+    public void openStation(Marker marker) {
+        currentMarker = marker;
+        if (myMarkers.contains(currentMarker)) {
+            currentMarker.setIcon(getBitmapDescriptor(R.drawable.ic_bus_station_active));
+            currentMarkerType = ID_BUS_STATIONS;
+        }
+        else {
+            currentMarker.setIcon(getBitmapDescriptor(R.drawable.ic_veloh_station_active));
+            currentMarkerType = ID_VELOH_STATIONS;
+        }
+        if (myMarkers.contains(marker) || myVeloh.contains(marker))
+        {
+            LatLng position = marker.getPosition();
+            mMap.moveCamera(CameraUpdateFactory.newLatLng(position));
+            Intent intent = new Intent(MapsActivity.this, BusStopPop.class);
+            intent.putExtra("latitude", position.latitude);
+            intent.putExtra("longitude", position.longitude);
+            intent.putExtra("name", marker.getTitle());
+            if (myMarkers.contains(marker)) {
+                intent.putExtra("type", ID_BUS_STATIONS);
+            }
+            else {
+                intent.putExtra("type", ID_VELOH_STATIONS);
+            }
+            startActivityForResult(intent, 0);
+            //startActivity(intent);
+        }
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (currentMarkerType == ID_BUS_STATIONS) {
+            currentMarker.setIcon(getBitmapDescriptor(R.drawable.ic_bus_station));
+        }
+        else {
+            currentMarker.setIcon(getBitmapDescriptor(R.drawable.ic_veloh_station));
         }
     }
 
@@ -207,7 +317,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mGoogleApiClient.disconnect();
         super.onStop();
     }
-
 
     /**
      * Manipulates the map once available.

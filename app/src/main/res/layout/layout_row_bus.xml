@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:text="TextView"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:id="@+id/textView_busNumber"
+        android:layout_weight="1"
+        android:textSize="18sp"
+        android:textColor="@color/cast_libraries_material_featurehighlight_outer_highlight_default_color"
+        android:textStyle="normal|bold"
+        android:gravity="center_vertical|left" />
+    <TextView
+        android:text="TextView"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:id="@+id/textView_busDestination"
+        android:layout_weight="1"
+        android:gravity="center_vertical|left"/>
+    <TextView
+        android:text="TextView"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:id="@+id/textView_busTime"
+        android:layout_weight="1"
+        android:textSize="15sp"
+        android:textColor="@android:color/holo_green_light"
+        android:gravity="center_vertical|right" />
+</LinearLayout>

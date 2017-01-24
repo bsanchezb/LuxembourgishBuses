@@ -33,7 +33,11 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:id="@+id/textView_ErrorText"
-            android:visibility="gone"/>
+            android:visibility="gone"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="10dp"
+            android:maxLines = "20"
+            android:scrollbars = "vertical"/>
 
         <ListView
             android:layout_width="match_parent"

@@ -45,6 +45,14 @@
         <activity android:name=".BusStopPop"
             android:theme="@style/AppTheme.CustomTheme"
             ></activity>
+
+        <activity android:name=".RouteFinding"
+            android:theme="@style/AppTheme.CustomTheme"
+            ></activity>
+
+        <activity android:name=".QueryHistory"
+            android:theme="@style/AppTheme.CustomTheme"
+            ></activity>
     </application>
 
 </manifest>

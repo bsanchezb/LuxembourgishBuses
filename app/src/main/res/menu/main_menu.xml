@@ -3,6 +3,9 @@
     <!-- Search the closest bus station -->
     <item android:id="@+id/closest_station"
         android:title="Show the closest station"/>
+    <!-- Query history -->
+    <item android:id="@+id/query_history"
+        android:title="Show the user queries history"/>
 
     <!-- Exit -->
     <item android:id="@+id/exit"

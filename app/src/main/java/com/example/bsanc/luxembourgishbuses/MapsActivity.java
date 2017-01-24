@@ -5,6 +5,7 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.os.Build;
 
+import com.google.android.gms.awareness.state.BeaconState;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -46,10 +47,14 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.maps.android.clustering.ClusterItem;
 import com.google.maps.android.clustering.ClusterManager;
 
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 
 import org.json.JSONException;
@@ -59,7 +64,7 @@ import org.json.JSONObject;
 import android.content.Intent;
 
 
-public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, ConnectionCallbacks, OnConnectionFailedListener, OnMarkerClickListener {
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, ConnectionCallbacks, OnConnectionFailedListener, OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnMapLongClickListener {
 
     private GoogleMap mMap;
     private ArrayList<Station> myStations = new ArrayList<Station>();
@@ -86,8 +91,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-
-
 
         // Create an instance of GoogleAPIClient.
         if (mGoogleApiClient == null) {
@@ -116,6 +119,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         switch (item.getItemId()) {
             case R.id.closest_station:
                 getClosestStation();
+                return true;
+            case R.id.query_history:
+                getQueryHistory();
                 return true;
             case R.id.exit:
                 return true;
@@ -253,7 +259,27 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public boolean onMarkerClick(final Marker marker) {
         openStation(marker);
+        writeToFile(marker);
         return true;
+    }
+
+    public void writeToFile(Marker marker) {
+        try {
+            String currentDateTimeString = DateFormat.getDateTimeInstance().format(new Date());
+
+            FileOutputStream fileout = openFileOutput("query_history", MODE_APPEND);
+            OutputStreamWriter outputWriter = new OutputStreamWriter(fileout);
+            outputWriter.write(marker.getTitle() + " " + currentDateTimeString + "\n");
+            outputWriter.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void getQueryHistory() {
+        Intent intent = new Intent(MapsActivity.this, QueryHistory.class);
+        startActivity(intent);
     }
 
     public void openStation(Marker marker) {
@@ -333,10 +359,32 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         getCurrentLocation(googleMap);
 
+        mMap.setOnMapClickListener(this);
+        mMap.setOnMapLongClickListener(this);
+
         // Add a marker in Sydney and move the camera
         //LatLng sydney = new LatLng(-34, 151);
         //mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
         //mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+    }
+
+    @Override
+    public void onMapClick(LatLng latLng) {
+        //System.out.println("OnMapClick");
+    }
+
+    @Override
+    public void onMapLongClick(LatLng point) {
+        bestRouteFinding(point);
+    }
+
+    private void bestRouteFinding(LatLng point) {
+        Intent intent = new Intent(MapsActivity.this, RouteFinding.class);
+        intent.putExtra("point_latitude", point.latitude);
+        intent.putExtra("point_longitude", point.longitude);
+        intent.putExtra("user_latitude", mLastLocation.getLatitude());
+        intent.putExtra("user_longitude", mLastLocation.getLongitude());
+        startActivity(intent);
     }
 
     public void getCurrentLocation(GoogleMap googleMap) {

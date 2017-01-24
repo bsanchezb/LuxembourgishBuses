@@ -18,6 +18,8 @@ public class Bus {
     Date datetime;
     Date rtDatetime;
     String direction;
+    String station;
+    String user_station;
 
     public Bus() {};
 

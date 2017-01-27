@@ -1,8 +1,10 @@
 package com.example.bsanc.luxembourgishbuses;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.os.AsyncTask;
+import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.widget.TextView;
@@ -81,6 +83,43 @@ public class AsyncRouteFindingRequest extends AsyncTask<Bus,Void,Bus> {
         mInflater = inflater;
     }
 
+    private final Handler mHandler = new Handler();
+
+    private final Runnable mUpdateUI = new Runnable() {
+        int i = 0;
+        public void run() {
+            displayData(i);
+            mHandler.postDelayed(mUpdateUI, 300); // 0.3 second
+            i = (i+1) % 4;
+        }
+    };
+
+    private void displayData(int i) {
+        TextView start_station = (TextView) mActivity.findViewById(R.id.textView_startStation);
+        switch (i) {
+            case 0:
+                start_station.setText("Please, wait. Loading");
+                break;
+            case 1:
+                start_station.setText("Please, wait. Loading.");
+                break;
+            case 2:
+                start_station.setText("Please, wait. Loading..");
+                break;
+            default:
+                start_station.setText("Please, wait. Loading...");
+                break;
+        }
+    }
+
+    @Override
+    protected void onPreExecute(){
+        super.onPreExecute();
+        //TextView start_station = (TextView) mActivity.findViewById(R.id.textView_startStation);
+        //start_station.setText("Loading... Please, wait.");
+        mHandler.post(mUpdateUI);
+    }
+
     @Override
     protected Bus doInBackground(Bus... params) {
         List<Bus> near_buses = new ArrayList<Bus>();
@@ -98,6 +137,7 @@ public class AsyncRouteFindingRequest extends AsyncTask<Bus,Void,Bus> {
     protected void onPostExecute(Bus requestresult) {
         if (requestresult != null) {
             super.onPostExecute(requestresult);
+            mHandler.removeCallbacks(mUpdateUI);
             TextView start_station = (TextView) mActivity.findViewById(R.id.textView_startStation);
             TextView finish_station = (TextView) mActivity.findViewById(R.id.textView_finishStation);
             TextView bus_number = (TextView) mActivity.findViewById(R.id.textView_busNumber);
@@ -154,12 +194,14 @@ public class AsyncRouteFindingRequest extends AsyncTask<Bus,Void,Bus> {
             for (Bus point_bus : busesAroundPoint) {
                 //System.out.println("Current bus: " + point_bus.name);
                 for(Bus user_bus: userCloseBuses) {
-                    //System.out.println(point_bus.name + " : " + user_bus.name);
                     try {
                         int value_user = Integer.parseInt(user_bus.name.replaceAll("[^\\d.]", ""));
                         int value_point = Integer.parseInt(point_bus.name.replaceAll("[^\\d.]", ""));
+                        String direction_user = user_bus.direction.split(",")[0];
+                        String direction_point = point_bus.direction.split(",")[0];
                         //System.out.println(value_point + " : " + value_user);
-                        if (value_point == value_user && findingBus == null) {
+
+                        if (value_point == value_user && direction_user.compareTo(direction_point) == 0 && findingBus == null) {
                             //System.out.println("Equal");
                             findingBus = user_bus;
                             findingBus.user_station = point_bus.station;

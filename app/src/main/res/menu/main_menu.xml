@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <!-- Search the closest bus station -->
     <item android:id="@+id/closest_station"
         android:title="Show the closest station"/>
+    <!-- Show stations around module -->
+    <item
+        android:id="@+id/action_closest"
+        android:title="Show stations around"
+        app:showAsAction="never"/>
     <!-- Query history -->
     <item android:id="@+id/query_history"
         android:title="Show the user queries history"/>

@@ -1,12 +1,8 @@
 package com.example.bsanc.luxembourgishbuses;
 
-import android.app.Activity;
-import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.os.Build;
 
-import com.google.android.gms.awareness.state.BeaconState;
-import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -20,12 +16,14 @@ import com.google.android.gms.maps.model.BitmapDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.location.Location;
-import android.support.v7.app.ActionBarActivity;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.graphics.drawable.VectorDrawable;
 
@@ -38,33 +36,33 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
 import com.google.android.gms.maps.GoogleMap.OnCameraChangeListener;
-import com.google.android.gms.maps.GoogleMap.OnCameraMoveStartedListener;
-import com.google.android.gms.maps.GoogleMap.OnCameraMoveListener;
-import com.google.android.gms.maps.GoogleMap.OnCameraIdleListener;
 import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener;
-import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.maps.model.CameraPosition;
-import com.google.maps.android.clustering.ClusterItem;
-import com.google.maps.android.clustering.ClusterManager;
 
 import java.io.FileOutputStream;
-import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 
 import org.json.JSONException;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import android.content.Intent;
+import android.widget.Toast;
 
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.VolleyLog;
+import com.android.volley.toolbox.JsonObjectRequest;
 
-public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, ConnectionCallbacks, OnConnectionFailedListener, OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnMapLongClickListener {
+import com.example.bsanc.luxembourgishbuses.app.AppController;
+
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, ConnectionCallbacks, OnConnectionFailedListener, OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnMapLongClickListener, SeekBar.OnSeekBarChangeListener {
 
     private GoogleMap mMap;
     private ArrayList<Station> myStations = new ArrayList<Station>();
@@ -82,6 +80,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public int currentMarkerType;
     private static final int ID_BUS_STATIONS = 0;
     private static final int ID_VELOH_STATIONS = 1;
+    private static final String TAG = "Volley";
+    private TextView mTextValue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,7 +100,40 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     .addApi(LocationServices.API)
                     .build();
         }
+        seekBarRun();
     }
+
+    private void seekBarRun() {
+        // SeekBar
+        final SeekBar seekbar = (SeekBar)findViewById(R.id.seekBar);
+        seekbar.setOnSeekBarChangeListener(this);
+
+        mTextValue = (TextView)findViewById(R.id.textView2);
+        mTextValue.setText("0");
+        // end of SeekBar
+    }
+
+    // SeekBar
+    @Override
+    public void onProgressChanged(SeekBar seekBar, int progress,
+                                  boolean fromUser) {
+        mTextValue.setText(String.valueOf(seekBar.getProgress())+" m");
+        // TODO Auto-generated method stub
+    }
+
+    @Override
+    public void onStartTrackingTouch(SeekBar seekBar) {
+        // TODO Auto-generated method stub
+    }
+
+    @Override
+    public void onStopTrackingTouch(SeekBar seekBar) {
+        // TODO Auto-generated method stub
+        mTextValue.setText(String.valueOf(seekBar.getProgress())+" m");
+        //     Log.d(TAG,"seekBar.getProgress()" + seekBar.getProgress());
+        Volley_json(seekBar.getProgress());
+    }
+// end of seekbar
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -120,14 +153,25 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             case R.id.closest_station:
                 getClosestStation();
                 return true;
+            case R.id.action_closest:
+                showStationsAround();
+                return true;
             case R.id.query_history:
                 getQueryHistory();
                 return true;
             case R.id.exit:
+                finish();
+                System.exit(0);
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    private void showStationsAround() {
+        LinearLayout linearLayout = (LinearLayout) findViewById(R.id.linearLayout1);
+        //Log.d(TAG,"Volley : see you");
+        linearLayout.setVisibility(View.VISIBLE);
     }
 
     @Override
@@ -209,7 +253,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 break;
             case ID_VELOH_STATIONS:
                 myVeloh.add(mMap.addMarker(new MarkerOptions().position(location).title(station.name).icon(getBitmapDescriptor(R.drawable.ic_veloh_station)).anchor(0.5f, 0.5f)));
-            break;
+                break;
         }
     }
 
@@ -371,6 +415,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onMapClick(LatLng latLng) {
         //System.out.println("OnMapClick");
+        LinearLayout linearLayout = (LinearLayout) findViewById(R.id.linearLayout1);
+        //Log.d(TAG,"Volley : see you");
+        linearLayout.setVisibility(View.INVISIBLE);
     }
 
     @Override
@@ -411,5 +458,76 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         return json;
     }
+
+
+    public  void Volley_json(double dist){
+        // Tag used to cancel the request
+        String tag_json_obj = "json_obj_req";
+
+        Log.d(TAG,"loook  "+ mMap.getCameraPosition().target.latitude + " " + mMap.getCameraPosition().target.longitude);
+        double longitude, latitude;
+        longitude=mMap.getCameraPosition().target.longitude;
+        latitude=mMap.getCameraPosition().target.latitude;
+        final ArrayList<Station> formList = new ArrayList<Station>();
+        String url = "https://api.tfl.lu/v1/StopPoint/around/"+longitude +"/" + latitude +"/"+dist;
+
+
+        JsonObjectRequest jsonObjReq = new JsonObjectRequest(Request.Method.GET,
+                url, null,
+                new Response.Listener<JSONObject>() {
+
+                    @Override
+                    public void onResponse(JSONObject response) {
+                        String str= "";
+                        //Log.d(TAG, response.toString());
+                        try{
+                            JSONArray features = response.getJSONArray("features");
+                            for (int i = 0; i < features.length(); i++) {
+                                JSONObject jo_inside = features.getJSONObject(i);
+                                //Log.d(TAG, "jo_inside"+jo_inside.toString());
+                                try {
+                                    JSONObject properties = jo_inside.getJSONObject("properties");
+                                    Station station = new Station(properties.getString("name"), Double.parseDouble(properties.getString("distance")));
+                                    str+=" Name: "+station.name+ ", distance = " + station.distance+"\n";
+
+                                }
+                                catch (JSONException ee) {
+                                    ee.printStackTrace();
+                                    Log.d(TAG,"what an error" + ee.getMessage());
+                                    Toast.makeText(getApplicationContext(),
+                                            "Error: " + ee.getMessage(),
+                                            Toast.LENGTH_LONG).show();
+                                }
+
+                            }
+                            TextView textView = (TextView) findViewById(R.id.textView3);
+                            textView.setText(str);
+
+                        }
+                        catch (JSONException e) {
+                            e.printStackTrace();
+                            Log.d(TAG,"what an error" + e.getMessage());
+                            Toast.makeText(getApplicationContext(),
+                                    "Error: " + e.getMessage(),
+                                    Toast.LENGTH_LONG).show();
+                        }
+
+
+                    }
+                }, new Response.ErrorListener() {
+
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                VolleyLog.d(TAG, "Error: " + error.getMessage());
+            }
+        }) {
+        };
+
+        // Adding request to request queue
+        if(jsonObjReq!=null) {
+            AppController.getInstance().addToRequestQueue(jsonObjReq, tag_json_obj);
+        }
+
+    };
 
 }

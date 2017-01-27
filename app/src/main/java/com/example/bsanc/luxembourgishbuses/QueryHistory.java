@@ -49,7 +49,7 @@ public class QueryHistory extends Activity {
         TextView queries_text = (TextView)findViewById(R.id.textView_ErrorText);
         queries_text.setText(reverse);
         queries_text.setVisibility(View.VISIBLE);
-        queries_text.setMovementMethod(new ScrollingMovementMethod());
+        queries_text.setMovementMethod(new ScrollingMovementMethod().getInstance());
     }
 
     private String getQueriesList() {
